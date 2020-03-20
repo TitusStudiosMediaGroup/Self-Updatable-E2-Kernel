@@ -1,4 +1,13 @@
-#[
+@name Self-Updatable Kernel/main
+@persist [KernelExecuteOnTick KernelAutoupdate ResetOnDupefinished_Delay_Nbr]:number [URL_Str DIR_Str E2Data_Str ApplicationLocalDirectory ApplicationVersion ApplicationSourcecode App_Directory_Str ApplicationAuthor ApplicationName ApplicationLocalVersion]:string
+@model
+@trigger all
+@autoupdate
+
+if(dupefinished() | duped()){ reset() }
+if(first()){ 
+    
+    #[
     The Self Updatable E2 simplifies & automates the updating process of a User App.
 
     Self Updatable E2. Copyright (c) 2020. Cassandra "ZZ Cat" Robinson.
@@ -18,53 +27,22 @@
     Developer contributions & ideas are welcome. Submit your pull requests here: https://bit.ly/SelfUpdatableE2_Contribute
     Head on over to my Facebook Page & click the "Follow" button: https://bit.ly/ZZCatOnFacebook
     NB: I don't do friend requests on my Facebook Page. So, don't take offense, if I delete your requests.
-]#
-
-@name Self-Updatable Kernel/main
-@model
-@persist [APP_RunOnTick_Nbr APP_AutoUpdate_Nbr ResetOnDupefinished_Delay_Nbr]:number [URL_Str DIR_Str E2Data_Str VC_URL_Str US_URL_Str App_Directory_Str]:string
-@trigger all
-@autoupdate
-
-#[ Reset Handler. ]#
-if(dupefinished()){
-
-    # This number can be adjusted upward, as a temporary workaround to a bug that cropped up in version 1.0.0. See the errata for further details.
-    ResetOnDupefinished_Delay_Nbr = 0
-
-    # Reset on Dupefinished delay, based on server lag & a pre-adjusted number.
-    timer("Reset", (realtime() - curtime()) + ResetOnDupefinished_Delay_Nbr)
-
-}
-
-if(clk("Reset")){
-
-    # Reset the E2.
-    stoptimer("Reset")
-    reset()
-
-}
-
-#[ Initialize the E2 & User App. ]#
-if(first()){
-
-    # Stop the kernel from resetting, on the first run.
-    stoptimer("Reset")
+    ]#
 
     # This include is the path to your application. THIS file is what the kernel updates, when new code is made available.
     #include "e2shared/mySelfUpdatableE2/main"
+    
+    ApplicationAuthor = "Cassie Robinson"
+    ApplicationName = "Self-Updatable Kernel"
+    ApplicationLocalVersion = "1.2.1"
+    
+    KernelExecuteOnTick = 0
+    KernelAutoupdate = 1
+    ApplicationLocalDirectory = ">e2shared/mySelfUpdatableE2/main.txt"
+    ApplicationVersion = "https://raw.githubusercontent.com/ZZ-Cat/Self-Updatable-E2-Kernel/Seed/VERSION.txt"
+    ApplicationSourcecode = "https://raw.githubusercontent.com/ZZ-Cat/Self-Updatable-E2-Kernel/Seed/expression2/e2shared/mySelfUpdatableE2/main.txt"
 
-    # These includes are vital for the kernel to function.
-    #include "self-updatable kernel/include/config"
-
-    # Load configs.
-    APP_RunOnTick_Nbr = Kernel_Config["Run On Tick", string] == "yes" ? 1 : 0
-    APP_AutoUpdate_Nbr = Kernel_Config["Auto-Update User App", string] == "yes" ? 1 : 0
-    App_Directory_Str = Kernel_Config["User App Directory", string]
-    US_URL_Str = Kernel_Config["Update Server URL", string]
-    VC_URL_Str = Kernel_Config["Version Check URL", string]
-
-    # Initialize the user's application.
+    # Initialize the application.
     setup()
 
     # Set the name of the user's application. NB: This will appear in the E2's popup window, when you look at the E2 chip in-game.
@@ -79,12 +57,12 @@ if(first()){
     setName(AppName_Str)
 
     # Set execution triggers.
-    runOnTick(APP_RunOnTick_Nbr)
+    runOnTick(KernelExecuteOnTick)
     runOnHTTP(1)
     runOnFile(1)
 
     # Start an HTTP request.
-    URL_Str = VC_URL_Str
+    URL_Str = ApplicationVersion
     timer("Request from HTTP", 100)
 
 }
@@ -124,7 +102,7 @@ if(httpClk()){
         switch(CallbackURL_Str){
 
             # Version Check Server requested HTTP data.
-            case VC_URL_Str,
+            case ApplicationVersion,
 
                 local Lines_Ary = Data_Str:explode("\n")
                 local SV_Kernel_Author_Str = Lines_Ary[1, string]:explode("Author: ")[2, string]
@@ -135,9 +113,9 @@ if(httpClk()){
                 local SV_Updatable_Name_Str = Lines_Ary[6, string]:explode("Name: ")[2, string]
                 local SV_Updatable_Version_Str = Lines_Ary[7, string]:explode("Version: ")[2, string]
 
-                local CFG_Kernel_Author_Str = Kernel_Config["Kernel Author", string]
-                local CFG_Kernel_Name_Str = Kernel_Config["Kernel Name", string]
-                local CFG_Kernel_Version_Str = Kernel_Config["Kernel Version", string]
+                local CFG_Kernel_Author_Str = ApplicationAuthor
+                local CFG_Kernel_Name_Str = ApplicationName
+                local CFG_Kernel_Version_Str = ApplicationLocalVersion
 
                 local CFG_Updatable_Author_Str = App_Config["App Author", string]
                 local CFG_Updatable_Name_Str = App_Config["App Name", string]
@@ -164,10 +142,10 @@ if(httpClk()){
                 elseif(SV_Updatable_Version_Str != CFG_Updatable_Version_Str){
 
                     # How should the new update be handled?
-                    if(APP_AutoUpdate_Nbr){
+                    if(KernelAutoupdate){
 
                         # Send an HTTP request to the update server.
-                        URL_Str = US_URL_Str
+                        URL_Str = ApplicationSourcecode
                         timer("Request from HTTP", 100)
 
                     }
@@ -182,7 +160,7 @@ if(httpClk()){
                 break
 
             # Update Server requested HTTP Data.
-            case US_URL_Str,
+            case ApplicationSourcecode,
 
                 # Download new code from the update server & start a call to open up the local file.
                 E2Data_Str = Data_Str
